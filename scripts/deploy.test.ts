@@ -32,7 +32,6 @@ const validConfig: DeploymentConfig = {
     cloudflare: extraWorkerEntries.cloudflare!,
     confluence: extraWorkerEntries.confluence!,
     linear: extraWorkerEntries.linear!,
-    spotify: extraWorkerEntries.spotify!,
     supabase: extraWorkerEntries.supabase!,
     homeassistant: extraWorkerEntries.homeassistant!,
     mcp: extraWorkerEntries.mcp!,

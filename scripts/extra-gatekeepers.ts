@@ -71,13 +71,6 @@ export const EXTRA_GATEKEEPERS: readonly ExtraGatekeeperSpec[] = [
     oauth: true,
   },
   {
-    key: "spotify",
-    shortName: "spotify",
-    dir: "cloudflare-os/packages/gatekeeper-spotify",
-    packageName: "@gadgets/spotify-gatekeeper",
-    oauth: true,
-  },
-  {
     key: "supabase",
     shortName: "supabase",
     dir: "cloudflare-os/packages/gatekeeper-supabase",

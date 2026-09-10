@@ -41,7 +41,6 @@
     "cloudflare": { "name": "samabrains-os-cloudflare" },
     "confluence": { "name": "samabrains-os-confluence" },
     "linear": { "name": "samabrains-os-linear" },
-    "spotify": { "name": "samabrains-os-spotify" },
     "supabase": { "name": "samabrains-os-supabase" },
     "homeassistant": { "name": "samabrains-os-homeassistant" },
     "mcp": { "name": "samabrains-os-mcp" },

@@ -17,7 +17,6 @@ Connectors appear under `/admin` and **Connections** after Access login.
 | Cloudflare | `samabrains-os-cloudflare` | `/gatekeeper/cloudflare` | OAuth |
 | Confluence | `samabrains-os-confluence` | `/gatekeeper/confluence` | OAuth |
 | Linear | `samabrains-os-linear` | `/gatekeeper/linear` | OAuth |
-| Spotify | `samabrains-os-spotify` | `/gatekeeper/spotify` | OAuth |
 | Supabase | `samabrains-os-supabase` | `/gatekeeper/supabase` | OAuth |
 | Home Assistant | `samabrains-os-homeassistant` | `/gatekeeper/homeassistant` | User URL + token in-app |
 | MCP | `samabrains-os-mcp` | `/gatekeeper/mcp` | Dynamic client registration |
@@ -25,8 +24,9 @@ Connectors appear under `/admin` and **Connections** after Access login.
 | Email | `samabrains-os-email` | `/gatekeeper/email` | Email Routing on `samabrains.com` |
 
 ZoomInfo is **not** deployed (typed Gatekeeper and MCP wiring left out intentionally).
+**Spotify** is intentionally **not** deployed (Premium / Development Mode friction); the upstream package remains in the submodule but is omitted from Samabrains `EXTRA_GATEKEEPERS`.
 
-## OAuth setup (required for all 9 OAuth connectors)
+## OAuth setup (required for all 8 OAuth connectors)
 
 Homepage (where asked): `https://os.samabrains.com`
 
@@ -53,7 +53,6 @@ Verified with `wrangler secret list` (both `CLIENT_ID` and `CLIENT_SECRET` prese
 | `samabrains-os-slack` | Set (app **Samabrains OS**, redirect + token rotation) |
 | `samabrains-os-confluence` | Set (Atlassian OAuth 2.0 **Samabrains OS**; add Confluence API scopes in console) |
 | `samabrains-os-linear` | Set (workspace `samabrains`) |
-| `samabrains-os-spotify` | Set (Premium may be required for Web API calls) |
 | `samabrains-os-supabase` | Set (org OAuth app **Samabrains OS**) |
 
 Local mirror (gitignored): `deployment.oauth.secrets.jsonc`. Install/update Workers:
@@ -135,7 +134,6 @@ Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, 
 | Linear | Pass | Connected as `rssebambulidde` |
 | Supabase | Pass | Connected as **ROBERT-SSEBAMBULIDDE's Org** |
 | Confluence | **You:** Fail | UI: Credentials expired. Create/link a Confluence Cloud site on the Atlassian OAuth account, then **Reconnect**. Scopes already on app **Samabrains OS**. |
-| Spotify | **You:** Fail | Add **Spotify Premium** on the **Developer Dashboard app owner** account; wait for propagation (hours). Callback now returns a clear HTML error (not Cloudflare 1101) when Premium is missing. Then reconnect. |
 | Email | Pass (UI + routing) | Connected as **Email Receiver**. Rule: `os@notify.samabrains.com` → `samabrains-os-email`. Optional: send a test mail and bind Email in a gadget. Apex Zoho MX conflict expected. |
 | Home Assistant | **You:** Blocked | No public HA URL/token in session. Provide a **public** HA base URL + long-lived access token, then connect in `/gatekeepers`. |
 | MCP Server | **You:** Blocked | No MCP URL in session. Provide a trusted MCP HTTPS URL (+ optional OAuth client id/secret). ZoomInfo MCP still N/A (vendor DCR allowlist). |
@@ -144,10 +142,9 @@ Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, 
 ### Next actions checklist (account-gated)
 
 1. Confluence Cloud site → **Reconnect** Confluence
-2. Spotify Premium on app owner → reconnect Spotify
-3. Paste HA URL + token when ready
-4. Paste MCP server URL when ready
-5. Optional: email `os@notify.samabrains.com` and confirm gadget receive
+2. Paste HA URL + token when ready
+3. Paste MCP server URL when ready
+4. Optional: email `os@notify.samabrains.com` and confirm gadget receive
 
 ### AI Gateway safety (2026-09-10)
 

@@ -127,7 +127,6 @@ export interface DeploymentConfig {
     cloudflare: { name: string };
     confluence: { name: string };
     linear: { name: string };
-    spotify: { name: string };
     supabase: { name: string };
     homeassistant: { name: string };
     mcp: { name: string };
