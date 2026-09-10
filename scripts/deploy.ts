@@ -44,6 +44,40 @@ function generatedPath(key: string): string {
 const defaultContextArtifactsNamespace = "gatekeeper-context-collections";
 const accountIdPattern = /^[a-f\d]{32}$/i;
 
+/** Resolve `errorReporting.release`: `"git"` → short HEAD SHA; other strings pass through; null/undefined omit. */
+export function resolveErrorReportingRelease(
+  release: string | null | undefined,
+  resolveGitShortSha: () => string = readGitShortSha,
+): string | undefined {
+  if (release == null) return undefined;
+  if (release === "git") {
+    const sha = resolveGitShortSha().trim();
+    if (!sha) {
+      throw new Error(
+        'errorReporting.release is "git" but git rev-parse --short HEAD returned an empty SHA.',
+      );
+    }
+    return sha;
+  }
+  return release;
+}
+
+function readGitShortSha(): string {
+  const result = spawnSync("git", ["rev-parse", "--short", "HEAD"], {
+    cwd: root,
+    encoding: "utf8",
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    const detail = (result.stderr ?? result.stdout ?? "").trim() || `exit ${result.status}`;
+    throw new Error(
+      `errorReporting.release is "git" but git rev-parse --short HEAD failed (${detail}). ` +
+        "Deploy from a git checkout, or set release to a concrete string or null.",
+    );
+  }
+  return (result.stdout ?? "").trim();
+}
+
 const requiredPaths = [
   "accountId",
   "workers.router.name",
@@ -328,6 +362,36 @@ export function validateConfig(config: DeploymentConfig): DeploymentConfig {
   if (typeof traceSampling !== "number" || traceSampling < 0 || traceSampling > 1) {
     throw new Error("Observability trace sampling must be between 0 and 1.");
   }
+
+  if (config.mcpPortal !== undefined) {
+    const portal = config.mcpPortal;
+    if (!portal || typeof portal !== "object" || Array.isArray(portal)) {
+      throw new Error("mcpPortal must be an object when present.");
+    }
+    if (typeof portal.url !== "string" || !portal.url.trim()) {
+      throw new Error("mcpPortal.url must be a non-empty HTTPS MCP endpoint.");
+    }
+    let portalUrl: URL;
+    try {
+      portalUrl = new URL(portal.url.trim());
+    } catch {
+      throw new Error("mcpPortal.url must be a valid URL.");
+    }
+    if (portalUrl.protocol !== "https:") {
+      throw new Error("mcpPortal.url must use https.");
+    }
+    if (portalUrl.username || portalUrl.password) {
+      throw new Error("mcpPortal.url must not include username or password.");
+    }
+    if (portal.name !== undefined && (typeof portal.name !== "string" || !portal.name.trim())) {
+      throw new Error("mcpPortal.name must be a non-empty string when set.");
+    }
+    if (portal.auth !== undefined &&
+        portal.auth !== "oauth" && portal.auth !== "none" && portal.auth !== "token") {
+      throw new Error('mcpPortal.auth must be "oauth", "none", or "token".');
+    }
+  }
+
   return config;
 }
 
@@ -474,7 +538,11 @@ function extraWorkshopServices(config: DeploymentConfig) {
   }));
 }
 
-export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): GeneratedConfigs {
+export function generateConfigs(
+  config: DeploymentConfig,
+  bases: BaseConfigs,
+  options?: { resolveGitShortSha?: () => string },
+): GeneratedConfigs {
   validateConfig(config);
   const router = structuredClone(bases.router);
   const workshop = structuredClone(bases.workshop);
@@ -485,6 +553,10 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
     ? structuredClone(bases.errorReporter)
     : undefined;
   const origin = publicOrigin(config);
+  const errorRelease = resolveErrorReportingRelease(
+    config.errorReporting.release,
+    options?.resolveGitShortSha,
+  );
 
   setCommon(router, config, config.workers.router.name, config.workers.router.route);
   router.services = [
@@ -541,7 +613,7 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
       props: {
         service: config.workers.workshop.name,
         environment: config.errorReporting.environment,
-        ...(config.errorReporting.release ? { release: config.errorReporting.release } : {}),
+        ...(errorRelease ? { release: errorRelease } : {}),
       },
     }] : []),
     {
@@ -616,9 +688,26 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
     const generated = structuredClone(base);
     setCommon(generated, config, extraWorkerName(config, spec));
     generated.vars = {
-      ...(generated.vars ?? {}),
+      ...generated.vars,
       BASE_URL: `${origin}/gatekeeper/${spec.shortName}`,
     };
+    if (spec.key === "mcpPortal" && config.mcpPortal?.url) {
+      const portalUrl = config.mcpPortal.url.trim();
+      const portalAuth = config.mcpPortal.auth ?? "oauth";
+      Object.assign(generated.vars, {
+        MCP_PORTAL_URL: portalUrl,
+        MCP_PORTAL_NAME: config.mcpPortal.name?.trim() || "Samabrains MCP Portal",
+        MCP_PORTAL_AUTH: portalAuth,
+      });
+      if (portalAuth === "token") {
+        generated.secrets = {
+          required: [...new Set([
+            ...(generated.secrets?.required ?? []),
+            "MCP_PORTAL_TOKEN",
+          ])],
+        };
+      }
+    }
     extras[spec.key] = generated;
   }
 

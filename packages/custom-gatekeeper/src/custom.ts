@@ -151,6 +151,11 @@ export class CustomAccount extends WorkerEntrypoint<Cloudflare.Env> implements G
     throw new Error("Custom Gatekeeper has no credentials to reconnect.");
   }
 
+  async commitReconnect(_stageId: string): Promise<void> {
+    // reconnect() never starts a flow, so nothing can ever be staged.
+    throw new Error("No reconnect is awaiting confirmation. Please try again.");
+  }
+
   async getAuthenticatedEmail(): Promise<string | null> {
     return null;
   }

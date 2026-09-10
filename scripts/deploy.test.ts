@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { parse, type ParseError } from "jsonc-parser";
-import { aiGatewayPlan, buildCommands, generateConfigs, validateConfig } from "./deploy.ts";
+import { aiGatewayPlan, buildCommands, generateConfigs, resolveErrorReportingRelease, validateConfig } from "./deploy.ts";
 import type {
   BaseConfigs,
   DeploymentConfig,
@@ -55,6 +55,11 @@ const validConfig: DeploymentConfig = {
     artifacts: { enabled: true, namespace: "acme-context-collections" },
   },
   customGatekeeper: { name: "Acme", message: "Use the company handbook." },
+  mcpPortal: {
+    url: "https://mcp.example.com/mcp",
+    name: "Acme MCP Portal",
+    auth: "oauth",
+  },
   errorReporting: { enabled: true, environment: "production", release: "abc123" },
   resources: {
     blueprintsKvNamespaceId: "blueprints-kv-id",
@@ -280,6 +285,15 @@ test("generates Access-mode Workshop, Context, and custom Gatekeeper configs", a
   assert.equal(
     generated.extras.mcpPortal.vars!.BASE_URL,
     "https://os.example.com/gatekeeper/mcp-portal");
+  assert.equal(
+    generated.extras.mcpPortal.vars!.MCP_PORTAL_URL,
+    "https://mcp.example.com/mcp");
+  assert.equal(
+    generated.extras.mcpPortal.vars!.MCP_PORTAL_NAME,
+    "Acme MCP Portal");
+  assert.equal(
+    generated.extras.mcpPortal.vars!.MCP_PORTAL_AUTH,
+    "oauth");
   assert.deepEqual(generated.workshop.observability!.logs, {
     invocation_logs: false,
   });
@@ -560,6 +574,23 @@ test("uses the default Context Artifacts namespace when omitted", async () => {
     binding: "ARTIFACTS",
     namespace: "gatekeeper-context-collections",
   }]);
+});
+
+test("resolves errorReporting.release git sentinel to a short SHA", async () => {
+  assert.equal(resolveErrorReportingRelease("git", () => "deadbeef"), "deadbeef");
+  assert.equal(resolveErrorReportingRelease("abc123"), "abc123");
+  assert.equal(resolveErrorReportingRelease(null), undefined);
+  assert.throws(
+    () => resolveErrorReportingRelease("git", () => "  "),
+    /returned an empty SHA/);
+
+  const config = variant((c) => { c.errorReporting.release = "git"; });
+  const generated = generateConfigs(config, await baseConfigs(), {
+    resolveGitShortSha: () => "deadbeef",
+  });
+  const reporter = generated.workshop.services!.find(
+    (service) => service.binding === "ERROR_REPORTER");
+  assert.equal(reporter?.props?.release, "deadbeef");
 });
 
 test("omits disabled Context Artifacts configuration", async () => {

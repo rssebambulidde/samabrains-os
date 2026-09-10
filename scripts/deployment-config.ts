@@ -138,6 +138,18 @@ export interface DeploymentConfig {
   context: ContextConfig;
   /** Display text the example custom Gatekeeper serves to agents. */
   customGatekeeper: { name: string; message: string };
+  /**
+   * Cloudflare Zero Trust MCP Server Portal wiring for `workers.mcpPortal`.
+   * When `url` is set, deploy writes MCP_PORTAL_* vars so the connector appears in Workshop.
+   */
+  mcpPortal?: {
+    /** Portal Streamable HTTP endpoint, typically https://<host>/mcp. */
+    url: string;
+    /** Display name in the connector list and approval prompts. */
+    name?: string;
+    /** oauth (default), none, or token. Token auth needs MCP_PORTAL_TOKEN as a Worker secret. */
+    auth?: "oauth" | "none" | "token";
+  };
   /** Private explicit-issue destination. */
   errorReporting: { enabled: boolean; environment?: string; release?: string | null };
   /** Workshop KV/R2. `null` requests Wrangler automatic provisioning. */

@@ -20,11 +20,30 @@ Connectors appear under `/admin` and **Connections** after Access login.
 | Supabase | `samabrains-os-supabase` | `/gatekeeper/supabase` | OAuth |
 | Home Assistant | `samabrains-os-homeassistant` | `/gatekeeper/homeassistant` | User URL + token in-app |
 | MCP | `samabrains-os-mcp` | `/gatekeeper/mcp` | Dynamic client registration |
-| MCP Portal | `samabrains-os-mcp-portal` | `/gatekeeper/mcp-portal` | Admin portal + MCP OAuth |
+| MCP Portal | `samabrains-os-mcp-portal` | `/gatekeeper/mcp-portal` | Access OAuth via portal URL |
 | Email | `samabrains-os-email` | `/gatekeeper/email` | Email Routing on `samabrains.com` |
 
 ZoomInfo is **not** deployed (typed Gatekeeper and MCP wiring left out intentionally).
 **Spotify** is intentionally **not** deployed (Premium / Development Mode friction); the upstream package remains in the submodule but is omitted from Samabrains `EXTRA_GATEKEEPERS`.
+
+### Observability / Context Artifacts
+
+Enabled in `deployment.jsonc`: Workers invocation logs, traces at 10% head sampling, and `errorReporting.release: "git"` (short SHA at deploy time). See [observability.md](observability.md).
+
+**Context Artifacts:** beta interest submitted 2026-09-10 for account `d77cecb6…` ([form](https://forms.gle/DwBoPRa3CWQ8ajFp7)); Cloudflare says enrollment can take **2–4 weeks**. `artifacts.enabled` stays `false` until `wrangler artifacts namespaces list` works (no feature gate 10004). Then set `enabled: true` (namespace defaults to `gatekeeper-context-collections`) and `pnpm deploy`.
+
+### MCP Server Portal (live)
+
+Zero Trust portal **Samabrains MCP Portal** at `https://mcp.samabrains.com/` (MCP endpoint `https://mcp.samabrains.com/mcp`).
+
+| Setting | Value |
+| --- | --- |
+| Seed upstream | Cloudflare Docs (`https://docs.mcp.cloudflare.com/mcp`, id `cloudflare-docs`) |
+| Access policy | **Samabrains admin** (allow `rssebambulidde@gmail.com`) |
+| Worker vars | `deployment.jsonc` → `mcpPortal.url` / `name` / `auth: oauth` → `MCP_PORTAL_*` on `samabrains-os-mcp-portal` |
+| Code Mode | Off |
+
+Connect once under `/gatekeepers` → **Samabrains MCP Portal**. Grants must name one upstream server (e.g. Docs), not the whole portal.
 
 ## OAuth setup (required for all 8 OAuth connectors)
 
@@ -110,19 +129,21 @@ Full setup notes: `cloudflare-os/packages/gatekeeper-google/README.md`.
 
 ## Email Routing
 
-Apex `samabrains.com` MX stays on **Zoho** (not replaced). Cloudflare Email Routing is enabled and a Worker rule was created on the ready subdomain:
+**Decision (locked):** Apex `samabrains.com` MX stays on **Zoho**. Cloudflare MX on the apex is **not** planned (it would break Zoho mail).
+
+The permanent Samabrains OS Email Gatekeeper inbound address is:
 
 | Address | Destination Worker |
 | --- | --- |
 | `os@notify.samabrains.com` | `samabrains-os-email` |
 
-Re-run setup: `node scripts/setup-email-routing.ts`
+Cloudflare Email Routing is enabled on the ready subdomain `notify.samabrains.com`. Re-run setup: `node scripts/setup-email-routing.ts`.
 
-To use apex `@samabrains.com` mailboxes later, you’d need Cloudflare MX on the apex (conflicts with Zoho) or another ready Email Routing subdomain.
+Apex `@samabrains.com` mailboxes are out of scope for this deployment while Zoho holds apex MX.
 
 ## Connect smoke (2026-09-09, updated 2026-09-10)
 
-Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, Slack, Linear, Google, Notion, GitHub, Supabase (8). Confluence shows in Connected with **Credentials expired** (needs site + reconnect).
+Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, Slack, Linear, Google, Notion, GitHub, Supabase, Confluence, **Samabrains MCP Portal** (10).
 
 | Connector | Result | Notes |
 | --- | --- | --- |
@@ -133,17 +154,17 @@ Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, 
 | Notion | Pass | Connected as Samabrains Solutions |
 | Linear | Pass | Connected as `rssebambulidde` |
 | Supabase | Pass | Connected as **ROBERT-SSEBAMBULIDDE's Org** |
-| Confluence | **You:** Fail | UI: Credentials expired. Create/link a Confluence Cloud site on the Atlassian OAuth account, then **Reconnect**. Scopes already on app **Samabrains OS**. |
-| Email | Pass (UI + routing) | Connected as **Email Receiver**. Rule: `os@notify.samabrains.com` → `samabrains-os-email`. Optional: send a test mail and bind Email in a gadget. Apex Zoho MX conflict expected. |
+| Confluence | Pass | Connected as Robert Ssebambulidde |
+| Email | Pass (UI + routing) | Connected as **Email Receiver**. Permanent address: `os@notify.samabrains.com` → `samabrains-os-email`. Apex stays Zoho (no Cloudflare MX). |
+| Samabrains MCP Portal | Pass | Connected. Portal `https://mcp.samabrains.com/mcp` with Cloudflare Docs seed. Grant Docs in a workspace to use tools. |
 | Home Assistant | **You:** Blocked | No public HA URL/token in session. Provide a **public** HA base URL + long-lived access token, then connect in `/gatekeepers`. |
-| MCP Server | **You:** Blocked | No MCP URL in session. Provide a trusted MCP HTTPS URL (+ optional OAuth client id/secret). ZoomInfo MCP still N/A (vendor DCR allowlist). |
-| MCP Portal | Out of scope | Needs `MCP_PORTAL_URL` on `samabrains-os-mcp-portal`. |
+| MCP Server | Optional | BYO HTTPS MCP URL (+ optional OAuth client id/secret). ZoomInfo MCP still N/A (vendor DCR allowlist). |
 
 ### Next actions checklist (account-gated)
 
-1. Confluence Cloud site → **Reconnect** Confluence
-2. Paste HA URL + token when ready
-3. Paste MCP server URL when ready
+1. Paste HA URL + token when ready
+2. Optional: grant Cloudflare Docs (via Samabrains MCP Portal) in a workspace and try a read tool
+3. Optional: paste a BYO MCP Server URL when ready
 4. Optional: email `os@notify.samabrains.com` and confirm gadget receive
 
 ### AI Gateway safety (2026-09-10)

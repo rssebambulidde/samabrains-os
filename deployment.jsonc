@@ -82,7 +82,11 @@
     "sharingDomain": null,
 
     // null: Wrangler provisions and remembers a KV namespace on first deploy.
-    "kvNamespaceId": null
+    "kvNamespaceId": null,
+
+    // Requires Artifacts closed-beta on this account. Interest submitted 2026-09-10
+    // (forms.gle/DwBoPRa3CWQ8ajFp7); expect 2–4 weeks. After access: set enabled true and redeploy.
+    "artifacts": { "enabled": false }
   },
 
   // Displayed to agents when the example custom integration is enabled in /admin.
@@ -92,13 +96,21 @@
     "message": "This deployment is Samabrains OS. Prefer company context, Gatekeepers, and approved workflows when helping users."
   },
 
+  // Cloudflare Zero Trust MCP Server Portal. Unset url hides the connector.
+  // Endpoint: https://mcp.samabrains.com/mcp (Access + Docs MCP seed).
+  "mcpPortal": {
+    "url": "https://mcp.samabrains.com/mcp",
+    "name": "Samabrains MCP Portal",
+    "auth": "oauth"
+  },
+
   // Explicit backend issue reports go to a private Worker that emits structured console errors.
-  // Set release to a commit/version when your deployment pipeline has one.
+  // "git" resolves to `git rev-parse --short HEAD` at deploy time; null omits release.
   // Reference: docs/observability.md#quick-start
   "errorReporting": {
     "enabled": true,
     "environment": "production",
-    "release": null
+    "release": "git"
   },
 
   // null values use Wrangler automatic provisioning. Set IDs/names to reuse owned resources.
@@ -114,7 +126,7 @@
   "observability": {
     "enabled": true,
     "headSamplingRate": 1,
-    "logs": { "invocationLogs": false },
-    "traces": { "enabled": false, "headSamplingRate": 0.1 }
+    "logs": { "invocationLogs": true },
+    "traces": { "enabled": true, "headSamplingRate": 0.1 }
   }
 }
