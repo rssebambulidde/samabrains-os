@@ -31,13 +31,18 @@ export interface RouterRoute {
   customDomain?: string;
 }
 
-/** Cloudflare Access trust boundary and the `/admin` allowlist. */
+/** Sign-in trust boundary and the `/admin` allowlist. */
 export interface AccessConfig {
-  /** Access team origin, HTTPS with no path. */
-  issuer: string;
-  /** The self-hosted Access application's AUD tag. */
-  audience: string;
-  /** Access-verified emails allowed into `/admin`. */
+  /**
+   * `access` (default): Cloudflare Access JWT at the edge; requires issuer + audience.
+   * `password`: built-in Cloudflare OS username/password until Zero Trust Access is configured.
+   */
+  mode?: "access" | "password";
+  /** Access team origin, HTTPS with no path. Required when mode is `access`. */
+  issuer: string | null;
+  /** The self-hosted Access application's AUD tag. Required when mode is `access`. */
+  audience: string | null;
+  /** Emails allowed into `/admin` (Access-verified or password-account emails). */
   admins: string[];
 }
 
@@ -114,6 +119,20 @@ export interface DeploymentConfig {
     customGatekeeper: { name: string };
     /** Only required when `errorReporting.enabled`. */
     errorReporter?: { name: string };
+    /** Extra Gatekeepers from the Cloudflare OS release (see `extra-gatekeepers.ts`). */
+    github: { name: string };
+    google: { name: string };
+    notion: { name: string };
+    slack: { name: string };
+    cloudflare: { name: string };
+    confluence: { name: string };
+    linear: { name: string };
+    spotify: { name: string };
+    supabase: { name: string };
+    homeassistant: { name: string };
+    mcp: { name: string };
+    mcpPortal: { name: string };
+    email: { name: string };
   };
   access: AccessConfig;
   aiGateway: AiGatewayConfigInput;
@@ -184,6 +203,8 @@ export interface GeneratedConfigs {
   customGatekeeper: ProdWranglerConfig;
   /** Absent when `errorReporting.enabled` is false. */
   errorReporter?: ProdWranglerConfig;
+  /** Extra Gatekeepers keyed by `workers` key (github, email, mcpPortal, …). */
+  extras: Record<string, ProdWranglerConfig>;
 }
 
 /** The upstream base configs the generated ones are derived from. */
@@ -194,6 +215,8 @@ export interface BaseConfigs {
   scheduler: ProdWranglerConfig;
   customGatekeeper: ProdWranglerConfig;
   errorReporter: ProdWranglerConfig;
+  /** Extra Gatekeeper base wrangler.jsonc files, keyed like `extras`. */
+  extras: Record<string, ProdWranglerConfig>;
 }
 
 /** One build step `deploy.ts` runs before deploying. See `buildCommands`. */

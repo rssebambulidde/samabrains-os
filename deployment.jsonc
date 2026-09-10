@@ -1,14 +1,11 @@
 {
   // Cloudflare account that owns every Worker and provisioned resource.
   // Find it: https://developers.cloudflare.com/fundamentals/account/find-account-and-zone-ids/
-  "accountId": "<CLOUDFLARE_ACCOUNT_ID>",
+  "accountId": "d77cecb6dcb60741b68f2f1f59f897d2",
 
   // The deployment's public origin, used for PUBLIC_BASE_URL and to scope Context data.
   // null derives it from workers.router.route.customDomain.
-  // Required when the router uses workersDev: the account's workers.dev subdomain is not
-  // knowable from this file. Write it as a bare origin, no path and no trailing slash --
-  // "https://<router-name>.<subdomain>.workers.dev".
-  "publicBaseUrl": null,
+  "publicBaseUrl": "https://os.samabrains.com",
 
   // Worker names are permanent service identities. Keep them unique within the account.
   // Reference: docs/customization.md#workers-and-routing
@@ -16,35 +13,50 @@
     // Owns the public URL and serves the frontend. Proxies /api and /blueprint-screenshot to the
     // Workshop, and /gatekeeper/<name> to the matching Gatekeeper.
     "router": {
-      "name": "<ROUTER_WORKER_NAME>",
+      "name": "samabrains-os-router",
 
       // Production: use a hostname in an active Cloudflare zone. Wrangler creates DNS and TLS.
-      // Evaluation: replace this with "route": { "workersDev": true } and set publicBaseUrl above.
       // https://developers.cloudflare.com/workers/configuration/routing/custom-domains/
-      "route": { "customDomain": "os.example.com" }
+      "route": { "customDomain": "os.samabrains.com" }
     },
 
     // The Workshop backend. No public route: the router reaches it over a service binding.
-    "workshop": { "name": "<WORKSHOP_WORKER_NAME>" },
-    "context": { "name": "<CONTEXT_WORKER_NAME>" },
+    "workshop": { "name": "samabrains-os-workshop" },
+    "context": { "name": "samabrains-os-context" },
 
     // The Scheduler Gatekeeper, which gives agents scheduled and recurring work. Ambient like
     // the Context Gatekeeper
-    "scheduler": { "name": "<SCHEDULER_WORKER_NAME>" },
+    "scheduler": { "name": "samabrains-os-scheduler" },
 
-    "customGatekeeper": { "name": "<CUSTOM_GATEKEEPER_WORKER_NAME>" },
-    "errorReporter": { "name": "<ERROR_REPORTER_WORKER_NAME>" }
+    "customGatekeeper": { "name": "samabrains-os-custom-gk" },
+    "errorReporter": { "name": "samabrains-os-errors" },
+
+    // Cloudflare OS release Gatekeepers (OAuth + Email + MCP + Home Assistant).
+    // OAuth Workers need CLIENT_ID / CLIENT_SECRET via `wrangler secret put` after deploy.
+    // Reference: docs/GATEKEEPERS.md
+    "github": { "name": "samabrains-os-github" },
+    "google": { "name": "samabrains-os-google" },
+    "notion": { "name": "samabrains-os-notion" },
+    "slack": { "name": "samabrains-os-slack" },
+    "cloudflare": { "name": "samabrains-os-cloudflare" },
+    "confluence": { "name": "samabrains-os-confluence" },
+    "linear": { "name": "samabrains-os-linear" },
+    "spotify": { "name": "samabrains-os-spotify" },
+    "supabase": { "name": "samabrains-os-supabase" },
+    "homeassistant": { "name": "samabrains-os-homeassistant" },
+    "mcp": { "name": "samabrains-os-mcp" },
+    "mcpPortal": { "name": "samabrains-os-mcp-portal" },
+    "email": { "name": "samabrains-os-email" }
   },
 
-  // This starter deploys Cloudflare Access mode. Cloudflare OS also supports built-in password
-  // accounts and auth Gatekeeper sign-in; see the reference below before switching. The audience
-  // comes from the self-hosted Access application protecting the public hostname.
+  // Cloudflare Access mode (Zero Trust). Team: samabrains.cloudflareaccess.com
   // "admins" gates /admin in every sign-in method.
   // Reference: docs/customization.md#sign-in-methods
   "access": {
-    "issuer": "https://<TEAM_NAME>.cloudflareaccess.com",
-    "audience": "<ACCESS_AUDIENCE>",
-    "admins": ["<ADMIN_EMAIL>"]
+    "mode": "access",
+    "issuer": "https://samabrains.cloudflareaccess.com",
+    "audience": "05474bd20b782dd7b025c432aff1ad6d1ea3b18900a82f47a7f8d725ef8ef215",
+    "admins": ["rssebambulidde@gmail.com"]
   },
 
   // Model catalog served through Cloudflare AI Gateway. Enabled by default: the Workshop reaches
@@ -55,17 +67,14 @@
     "enabled": true,
 
     // Your account's AI Gateway. "default" is the one Cloudflare creates for the account.
-    // Migrating from the hosted deploy? Use the gateway that flow created: "<instance>-ai"
-    // (e.g. "cloudflareos-ai"), named after your instance. See docs/migrate-from-hosted.md.
     "name": "default",
 
-    // null reuses the top-level accountId. Set only if the gateway lives in another account --
-    // that requires CF_AI_GATEWAY_API_TOKEN, since the binding cannot reach across accounts.
+    // null reuses the top-level accountId.
     "accountId": null,
 
-    // "cloudflare" is Workers AI, which needs no key of your own. anthropic/openai need keys
-    // stored on the gateway; "google" additionally requires CF_AI_GATEWAY_API_TOKEN.
-    "providers": ["cloudflare"]
+    // "cloudflare" is Workers AI. openai/anthropic appear in the shared catalog when the
+    // deployment AI Gateway has provider auth (Unified Billing or company API keys).
+    "providers": ["cloudflare", "openai", "anthropic"]
   },
 
   "context": {
@@ -74,23 +83,14 @@
     "sharingDomain": null,
 
     // null: Wrangler provisions and remembers a KV namespace on first deploy.
-    // string: bind an existing namespace by ID.
     "kvNamespaceId": null
-
-    // Optional Git-compatible storage for Context collections. To enable it, add a comma after
-    // kvNamespaceId and uncomment this object. Requires Artifacts account access.
-    // "artifacts": {
-    //   "enabled": true,
-    //   // Optional override; defaults to "gatekeeper-context-collections".
-    //   "namespace": "custom-context-collections"
-    // }
   },
 
   // Displayed to agents when the example custom integration is enabled in /admin.
   // Reference: docs/customization.md#custom-gatekeepers
   "customGatekeeper": {
-    "name": "<ORGANIZATION_DISPLAY_NAME>",
-    "message": "<ORGANIZATION_GUIDANCE>"
+    "name": "Samabrains",
+    "message": "This deployment is Samabrains OS. Prefer company context, Gatekeepers, and approved workflows when helping users."
   },
 
   // Explicit backend issue reports go to a private Worker that emits structured console errors.

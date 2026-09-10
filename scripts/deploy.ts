@@ -15,11 +15,16 @@ import type {
   ProdWranglerConfig,
   RouterRoute,
 } from "./deployment-config.ts";
+import {
+  EXTRA_GATEKEEPERS,
+  gatekeeperBindingName,
+  type ExtraGatekeeperSpec,
+} from "./extra-gatekeepers.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // One deployment per checkout; use separate worktrees for concurrent deploys.
 const generatedName = "wrangler.prod.jsonc";
-const packageDirs = {
+const corePackageDirs = {
   router: "cloudflare-os/packages/router",
   workshop: "cloudflare-os/packages/workshop-backend",
   context: "cloudflare-os/packages/gatekeeper-context",
@@ -27,9 +32,15 @@ const packageDirs = {
   customGatekeeper: "packages/custom-gatekeeper",
   errorReporter: "packages/error-reporter",
 } as const;
-const generatedPaths = Object.fromEntries(
-  Object.entries(packageDirs).map(([name, dir]) => [name, join(root, dir, generatedName)]),
-) as Record<keyof typeof packageDirs, string>;
+
+const packageDirs: Record<string, string> = {
+  ...corePackageDirs,
+  ...Object.fromEntries(EXTRA_GATEKEEPERS.map((g) => [g.key, g.dir])),
+};
+
+function generatedPath(key: string): string {
+  return join(root, packageDirs[key]!, generatedName);
+}
 const defaultContextArtifactsNamespace = "gatekeeper-context-collections";
 const accountIdPattern = /^[a-f\d]{32}$/i;
 
@@ -40,8 +51,7 @@ const requiredPaths = [
   "workers.context.name",
   "workers.scheduler.name",
   "workers.customGatekeeper.name",
-  "access.issuer",
-  "access.audience",
+  ...EXTRA_GATEKEEPERS.map((g) => `workers.${g.key}.name`),
   "access.admins",
   "aiGateway.enabled",
   "errorReporting.enabled",
@@ -216,8 +226,7 @@ export function validateConfig(config: DeploymentConfig): DeploymentConfig {
     .filter(([key]) => key !== "errorReporter" || config.errorReporting.enabled)
     .map(([, worker]) => worker.name);
   if (new Set(workerNames).size !== workerNames.length) {
-    throw new Error(
-      "Router, Workshop, Context, Scheduler, and custom Gatekeeper names must be unique.");
+    throw new Error("Worker names must be unique within the deployment.");
   }
   if (!workerNames.every((name) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(name))) {
     throw new Error("Worker names must use lowercase letters, numbers, and hyphens.");
@@ -248,13 +257,27 @@ export function validateConfig(config: DeploymentConfig): DeploymentConfig {
       "deployment's public origin, which is what the hosted deploy does.");
   }
 
-  const issuer = new URL(config.access.issuer);
-  if (issuer.protocol !== "https:" ||
-      issuer.origin !== config.access.issuer.replace(/\/$/, "")) {
-    throw new Error("Cloudflare Access issuer must be an HTTPS origin only.");
+  const accessMode = config.access.mode ?? "access";
+  if (accessMode !== "access" && accessMode !== "password") {
+    throw new Error('access.mode must be "access" or "password".');
   }
-  if (!config.access.audience.trim() || config.access.audience !== config.access.audience.trim()) {
-    throw new Error("Cloudflare Access audience must not be blank or padded with whitespace.");
+  if (accessMode === "access") {
+    if (typeof config.access.issuer !== "string" || !config.access.issuer.trim()) {
+      throw new Error("Cloudflare Access issuer is required when access.mode is access.");
+    }
+    if (typeof config.access.audience !== "string" || !config.access.audience.trim()) {
+      throw new Error("Cloudflare Access audience is required when access.mode is access.");
+    }
+    const issuer = new URL(config.access.issuer);
+    if (issuer.protocol !== "https:" ||
+        issuer.origin !== config.access.issuer.replace(/\/$/, "")) {
+      throw new Error("Cloudflare Access issuer must be an HTTPS origin only.");
+    }
+    if (config.access.audience !== config.access.audience.trim()) {
+      throw new Error("Cloudflare Access audience must not be blank or padded with whitespace.");
+    }
+  } else if (config.access.issuer != null || config.access.audience != null) {
+    throw new Error("access.issuer and access.audience must be null when access.mode is password.");
   }
   if (!Array.isArray(config.access.admins) ||
       !config.access.admins.every((email) =>
@@ -428,6 +451,29 @@ function setCommon(
   };
 }
 
+function extraWorkerName(config: DeploymentConfig, spec: ExtraGatekeeperSpec): string {
+  const worker = (config.workers as Record<string, { name?: string } | undefined>)[spec.key];
+  if (!worker?.name) {
+    throw new Error(`Missing required deployment value: workers.${spec.key}.name`);
+  }
+  return worker.name;
+}
+
+function extraRouterServices(config: DeploymentConfig) {
+  return EXTRA_GATEKEEPERS.map((spec) => ({
+    binding: gatekeeperBindingName(spec.shortName),
+    service: extraWorkerName(config, spec),
+  }));
+}
+
+function extraWorkshopServices(config: DeploymentConfig) {
+  return EXTRA_GATEKEEPERS.map((spec) => ({
+    binding: gatekeeperBindingName(spec.shortName),
+    service: extraWorkerName(config, spec),
+    entrypoint: "GatekeeperVendor",
+  }));
+}
+
 export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): GeneratedConfigs {
   validateConfig(config);
   const router = structuredClone(bases.router);
@@ -448,13 +494,17 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
     { binding: "GATEKEEPER_CONTEXT", service: config.workers.context.name },
     { binding: "GATEKEEPER_SCHEDULER", service: config.workers.scheduler.name },
     { binding: "GATEKEEPER_CUSTOM", service: config.workers.customGatekeeper.name },
+    ...extraRouterServices(config),
   ];
 
   setCommon(workshop, config, config.workers.workshop.name);
+  const accessMode = config.access.mode ?? "access";
   workshop.vars = {
     ADMINS: config.access.admins,
-    CF_ACCESS_ISS: config.access.issuer.replace(/\/$/, ""),
-    CF_ACCESS_AUD: config.access.audience,
+    ...(accessMode === "access" ? {
+      CF_ACCESS_ISS: config.access.issuer!.replace(/\/$/, ""),
+      CF_ACCESS_AUD: config.access.audience!,
+    } : {}),
     // Upstream builds OAuth redirect URIs and other absolute links from this. The backend has no
     // public route of its own, so the router's origin is the only correct value.
     PUBLIC_BASE_URL: origin,
@@ -513,6 +563,7 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
       service: config.workers.customGatekeeper.name,
       entrypoint: "GatekeeperVendor",
     },
+    ...extraWorkshopServices(config),
   ];
   workshop.kv_namespaces = [
     { binding: "BLUEPRINTS", ...(config.resources.blueprintsKvNamespaceId
@@ -556,9 +607,25 @@ export function generateConfigs(config: DeploymentConfig, bases: BaseConfigs): G
     setCommon(errorReporter, config, config.workers.errorReporter!.name);
   }
 
+  const extras: Record<string, ProdWranglerConfig> = {};
+  for (const spec of EXTRA_GATEKEEPERS) {
+    const base = bases.extras[spec.key];
+    if (!base) {
+      throw new Error(`Missing base wrangler config for Gatekeeper ${spec.key} (${spec.dir}).`);
+    }
+    const generated = structuredClone(base);
+    setCommon(generated, config, extraWorkerName(config, spec));
+    generated.vars = {
+      ...(generated.vars ?? {}),
+      BASE_URL: `${origin}/gatekeeper/${spec.shortName}`,
+    };
+    extras[spec.key] = generated;
+  }
+
   return {
     router, workshop, context, scheduler, customGatekeeper,
     ...(errorReporter && { errorReporter }),
+    extras,
   };
 }
 
@@ -604,11 +671,18 @@ export function buildCommands(config: DeploymentConfig): BuildCommand[] {
     // The Scheduler's `build` nests the same cached `vp run build:app`, so it needs the same pair.
     { args: submoduleBuild("@gadgets/gatekeeper-scheduler", "build:app") },
     { args: submoduleBuild("@gadgets/gatekeeper-scheduler") },
+    // Extra Gatekeepers: `build` dependsOn `build:configurator` via vite+ tasks.
+    ...EXTRA_GATEKEEPERS.map((spec) => ({ args: submoduleBuild(spec.packageName) })),
     { args: ownBuild("custom-gatekeeper") },
     ...(config.errorReporting.enabled ? [{ args: ownBuild("error-reporter") }] : []),
     // Access mode is a build-time constant in the frontend bundle (`src/useAuth.ts`), so it is set
     // here rather than inherited: a bundle built under a different value is wrong, not just stale.
-    { args: submoduleBuild("@gadgets/workshop-frontend"), env: { VITE_CF_ACCESS_MODE: "true" } },
+    {
+      args: submoduleBuild("@gadgets/workshop-frontend"),
+      ...((config.access.mode ?? "access") === "access"
+        ? { env: { VITE_CF_ACCESS_MODE: "true" } }
+        : {}),
+    },
     { args: submoduleBuild("@gadgets/router") },
     { args: submoduleBuild("@gadgets/workshop-backend") },
   ];
@@ -714,37 +788,59 @@ function reportAiGateway(config: DeploymentConfig): void {
 async function main(): Promise<void> {
   requireSubmodule();
   const config = await readDeployment(join(root, "deployment.jsonc"));
+  const extrasBases: Record<string, ProdWranglerConfig> = {};
+  for (const spec of EXTRA_GATEKEEPERS) {
+    extrasBases[spec.key] = await readJsonc(join(root, spec.dir, "wrangler.jsonc"));
+  }
   const generated = generateConfigs(config, {
-    router: await readJsonc(join(root, packageDirs.router, "wrangler.jsonc")),
-    workshop: await readJsonc(join(root, packageDirs.workshop, "wrangler.jsonc")),
-    context: await readJsonc(join(root, packageDirs.context, "wrangler.jsonc")),
-    scheduler: await readJsonc(join(root, packageDirs.scheduler, "wrangler.jsonc")),
-    customGatekeeper: await readJsonc(join(root, packageDirs.customGatekeeper, "wrangler.jsonc")),
-    errorReporter: await readJsonc(join(root, packageDirs.errorReporter, "wrangler.jsonc")),
+    router: await readJsonc(join(root, corePackageDirs.router, "wrangler.jsonc")),
+    workshop: await readJsonc(join(root, corePackageDirs.workshop, "wrangler.jsonc")),
+    context: await readJsonc(join(root, corePackageDirs.context, "wrangler.jsonc")),
+    scheduler: await readJsonc(join(root, corePackageDirs.scheduler, "wrangler.jsonc")),
+    customGatekeeper: await readJsonc(join(root, corePackageDirs.customGatekeeper, "wrangler.jsonc")),
+    errorReporter: await readJsonc(join(root, corePackageDirs.errorReporter, "wrangler.jsonc")),
+    extras: extrasBases,
   });
   reportAiGateway(config);
 
+  const writtenPaths: string[] = [];
   try {
     for (const [name, generatedConfig] of Object.entries(generated)) {
-      await writeFile(
-        generatedPaths[name as keyof typeof generatedPaths],
-        JSON.stringify(generatedConfig, null, 2) + "\n");
+      if (name === "extras") continue;
+      if (!generatedConfig) continue;
+      const path = generatedPath(name);
+      await writeFile(path, JSON.stringify(generatedConfig, null, 2) + "\n");
+      writtenPaths.push(path);
+    }
+    for (const [key, generatedConfig] of Object.entries(generated.extras)) {
+      const path = generatedPath(key);
+      await writeFile(path, JSON.stringify(generatedConfig, null, 2) + "\n");
+      writtenPaths.push(path);
     }
     const check = process.argv.includes("--check");
     if (check) run(["test"]);
     build(config);
     const deployArgs = check ? ["--dry-run"] : [];
     if (config.errorReporting.enabled) {
-      deployWorker(packageDirs.errorReporter, deployArgs);
+      deployWorker(corePackageDirs.errorReporter, deployArgs);
     }
-    deployWorker(packageDirs.context, deployArgs);
-    deployWorker(packageDirs.scheduler, deployArgs);
-    deployWorker(packageDirs.customGatekeeper, deployArgs);
-    deployWorker(packageDirs.workshop, deployArgs);
+    deployWorker(corePackageDirs.context, deployArgs);
+    deployWorker(corePackageDirs.scheduler, deployArgs);
+    deployWorker(corePackageDirs.customGatekeeper, deployArgs);
+    for (const spec of EXTRA_GATEKEEPERS) {
+      deployWorker(spec.dir, deployArgs);
+    }
+    deployWorker(corePackageDirs.workshop, deployArgs);
     // Last: it binds every one of the above.
-    deployWorker(packageDirs.router, deployArgs);
+    deployWorker(corePackageDirs.router, deployArgs);
+
+    if (!check) {
+      console.log(
+        "\nOAuth Gatekeepers need CLIENT_ID and CLIENT_SECRET on each Worker. See docs/GATEKEEPERS.md " +
+        "pnpm exec node scripts/put-gatekeeper-secrets.ts");
+    }
   } finally {
-    await Promise.all(Object.values(generatedPaths).map((path) => rm(path, { force: true })));
+    await Promise.all(writtenPaths.map((path) => rm(path, { force: true })));
   }
 }
 

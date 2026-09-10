@@ -9,6 +9,11 @@ import type {
   GeneratedConfigs,
   ProdWranglerConfig,
 } from "./deployment-config.ts";
+import { EXTRA_GATEKEEPERS, gatekeeperBindingName } from "./extra-gatekeepers.ts";
+
+const extraWorkerEntries = Object.fromEntries(
+  EXTRA_GATEKEEPERS.map((g) => [g.key, { name: `acme-cloudflare-os-${g.shortName}` }]),
+);
 
 const validConfig: DeploymentConfig = {
   accountId: "0123456789abcdef0123456789abcdef",
@@ -20,6 +25,19 @@ const validConfig: DeploymentConfig = {
     scheduler: { name: "acme-cloudflare-os-scheduler" },
     customGatekeeper: { name: "acme-cloudflare-os-custom" },
     errorReporter: { name: "acme-cloudflare-os-errors" },
+    github: extraWorkerEntries.github!,
+    google: extraWorkerEntries.google!,
+    notion: extraWorkerEntries.notion!,
+    slack: extraWorkerEntries.slack!,
+    cloudflare: extraWorkerEntries.cloudflare!,
+    confluence: extraWorkerEntries.confluence!,
+    linear: extraWorkerEntries.linear!,
+    spotify: extraWorkerEntries.spotify!,
+    supabase: extraWorkerEntries.supabase!,
+    homeassistant: extraWorkerEntries.homeassistant!,
+    mcp: extraWorkerEntries.mcp!,
+    mcpPortal: extraWorkerEntries.mcpPortal!,
+    email: extraWorkerEntries.email!,
   },
   access: {
     issuer: "https://acme.cloudflareaccess.com",
@@ -68,6 +86,10 @@ function variant(mutate: (config: Record<string, any>) => void): DeploymentConfi
 // Read from disk rather than inlined, including the Error Reporter's: deploy.ts derives every
 // generated config from these files, so a copy here could drift from what actually ships.
 async function baseConfigs(): Promise<BaseConfigs> {
+  const extras: Record<string, ProdWranglerConfig> = {};
+  for (const spec of EXTRA_GATEKEEPERS) {
+    extras[spec.key] = await baseConfig(`../${spec.dir}/wrangler.jsonc`);
+  }
   return {
     router: await baseConfig("../cloudflare-os/packages/router/wrangler.jsonc"),
     workshop: await baseConfig("../cloudflare-os/packages/workshop-backend/wrangler.jsonc"),
@@ -75,6 +97,7 @@ async function baseConfigs(): Promise<BaseConfigs> {
     scheduler: await baseConfig("../cloudflare-os/packages/gatekeeper-scheduler/wrangler.jsonc"),
     customGatekeeper: await baseConfig("../packages/custom-gatekeeper/wrangler.jsonc"),
     errorReporter: await baseConfig("../packages/error-reporter/wrangler.jsonc"),
+    extras,
   };
 }
 
@@ -225,6 +248,11 @@ test("generates Access-mode Workshop, Context, and custom Gatekeeper configs", a
       service: "acme-cloudflare-os-custom",
       entrypoint: "GatekeeperVendor",
     },
+    ...EXTRA_GATEKEEPERS.map((g) => ({
+      binding: gatekeeperBindingName(g.shortName),
+      service: `acme-cloudflare-os-${g.shortName}`,
+      entrypoint: "GatekeeperVendor",
+    })),
   ]);
   assert.deepEqual(generated.workshop.kv_namespaces, [
     { binding: "BLUEPRINTS", id: "blueprints-kv-id" },
@@ -243,6 +271,16 @@ test("generates Access-mode Workshop, Context, and custom Gatekeeper configs", a
     CUSTOM_MESSAGE: "Use the company handbook.",
   });
   assert.equal(generated.errorReporter!.name, "acme-cloudflare-os-errors");
+  assert.equal(generated.extras.github.name, "acme-cloudflare-os-github");
+  assert.equal(
+    generated.extras.github.vars!.BASE_URL,
+    "https://os.example.com/gatekeeper/github");
+  assert.equal(
+    generated.extras.email.vars!.BASE_URL,
+    "https://os.example.com/gatekeeper/email");
+  assert.equal(
+    generated.extras.mcpPortal.vars!.BASE_URL,
+    "https://os.example.com/gatekeeper/mcp-portal");
   assert.deepEqual(generated.workshop.observability!.logs, {
     invocation_logs: false,
   });
@@ -268,6 +306,10 @@ test("gives the router the public route, the frontend, and every service binding
     { binding: "GATEKEEPER_CONTEXT", service: "acme-cloudflare-os-context" },
     { binding: "GATEKEEPER_SCHEDULER", service: "acme-cloudflare-os-scheduler" },
     { binding: "GATEKEEPER_CUSTOM", service: "acme-cloudflare-os-custom" },
+    ...EXTRA_GATEKEEPERS.map((g) => ({
+      binding: gatekeeperBindingName(g.shortName),
+      service: `acme-cloudflare-os-${g.shortName}`,
+    })),
   ]);
   // Inherited untouched: the base config already carries the ASSETS binding, the SPA fallback, and
   // the /gatekeeper/* prefix an OAuth Gatekeeper redirect needs.
@@ -319,7 +361,10 @@ test("deploys the ambient Scheduler Gatekeeper the hosted flow preinstalls", asy
 
 test("keeps every Worker behind the router off the public internet", async () => {
   const generated = generateConfigs(validConfig, await baseConfigs());
-  const workers = Object.entries(generated) as [string, ProdWranglerConfig][];
+  const workers: [string, ProdWranglerConfig][] = [
+    ...Object.entries(generated).filter(([name]) => name !== "extras") as [string, ProdWranglerConfig][],
+    ...Object.entries(generated.extras),
+  ];
 
   for (const [name, worker] of workers) {
     if (name !== "router") {
