@@ -121,25 +121,34 @@ Re-run setup: `node scripts/setup-email-routing.ts`
 
 To use apex `@samabrains.com` mailboxes later, you’d need Cloudflare MX on the apex (conflicts with Zoho) or another ready Email Routing subdomain.
 
-## Connect smoke (2026-09-09)
+## Connect smoke (2026-09-09, updated 2026-09-10)
 
-Smoke from `/gatekeepers` after Access login. **CONNECTED** after this run: Email, Cloudflare, Slack, Linear, Google, Notion, GitHub (7).
+Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, Slack, Linear, Google, Notion, GitHub (7).
 
 | Connector | Result | Notes |
 | --- | --- | --- |
-| Google | Pass | Already connected (Robert / `rssebambulidde@gmail.com`) |
-| GitHub | Pass | Already connected |
-| Slack | Pass | Already connected |
+| Google | Pass | Connected (Robert / `rssebambulidde@gmail.com`) |
+| GitHub | Pass | Connected |
+| Slack | Pass | Connected |
 | Cloudflare | Pass | Connected as `rssebambulidde` |
 | Notion | Pass | Connected as Samabrains Solutions |
 | Linear | Pass | Connected as `rssebambulidde` |
-| Confluence | Fail | Scopes fixed on OAuth app **Samabrains OS**: Confluence API **24** (classic 8 + granular 16) + User identity (`read:me`, `read:account`). Consent now reaches Authorize, then **Access denied — no Confluence Cloud site** (“Visit atlassian.com to create a site”). Need a Confluence-licensed cloud site on the Atlassian account. |
-| Spotify | Fail | Vendor consent OK; callback `/gatekeeper/spotify/oauth` → **1101**. Workers Observability (`samabrains-os-spotify`): `exception` on that path; `$metadata.error` = **“Active premium subscription required for the owner of the app…”** (Spotify Feb 2026 Development Mode rule). Fix: Spotify Premium on the **Developer Dashboard app owner** account (can take hours to propagate). Soft gap: Worker throws uncaught → 1101 instead of a plain error page. |
-| Supabase | Partial | OAuth app scopes updated: `organizations:read`, `projects:read`, `database:read|write`, `edge_functions:read`, `storage:read`. Authorize payload now includes those scopes. Dashboard `/dashboard/authorize` UI still stuck on **Loading…** (SPA hang); re-authorize needed after UI works, or approve manually if the page ever renders. |
-| Email | Pass (UI + routing) | Gatekeeper UI → **Continue to Email** → connected as **Email Receiver**. Routing rule enabled: `os@notify.samabrains.com` → Worker `samabrains-os-email`; subdomain `notify.samabrains.com` status **ready**. Apex Email Routing status remains **misconfigured** (Zoho MX on apex — expected). Full mailbox smoke (gadget bind + test mail) not run. |
-| Home Assistant | Blocked | UI reachable; needs public HA URL + long-lived access token (Workers cannot reach LAN-only HA). |
-| MCP Server | Blocked | UI reachable; needs a trusted MCP endpoint URL (+ optional client credentials). No ZoomInfo MCP. |
-| MCP Portal | Out of scope | Not in AVAILABLE without `MCP_PORTAL_URL` on `samabrains-os-mcp-portal`. |
+| Confluence | **You:** Fail | Create a Confluence Cloud site on the Atlassian account used for OAuth, then reconnect at `/gatekeepers`. Scopes are already fixed on app **Samabrains OS**. |
+| Spotify | **You:** Fail | Add **Spotify Premium** on the **Developer Dashboard app owner** account; wait for propagation (hours). Callback now returns a clear HTML error (not Cloudflare 1101) when Premium is missing. Then reconnect. |
+| Supabase | **You:** Partial | Retry `/dashboard/authorize` when the SPA loads (or approve if it renders). Scopes already include orgs/projects/db/edge/storage. |
+| Email | Pass (UI + routing) | Connected as **Email Receiver**. Rule: `os@notify.samabrains.com` → `samabrains-os-email`. Optional: send a test mail and bind Email in a gadget. Apex Zoho MX conflict expected. |
+| Home Assistant | **You:** Blocked | Provide a **public** HA base URL + long-lived access token (Workers cannot reach LAN-only HA), then connect in `/gatekeepers`. |
+| MCP Server | **You:** Blocked | Provide a trusted MCP HTTPS URL (+ optional OAuth client id/secret). ZoomInfo MCP still N/A (vendor DCR allowlist). |
+| MCP Portal | Out of scope | Needs `MCP_PORTAL_URL` on `samabrains-os-mcp-portal`. |
+
+### Next actions checklist (account-gated)
+
+1. Confluence Cloud site → reconnect Confluence
+2. Spotify Premium on app owner → reconnect Spotify
+3. Supabase authorize page → finish OAuth
+4. Paste HA URL + token when ready
+5. Paste MCP server URL when ready
+6. Optional: email `os@notify.samabrains.com` and confirm gadget receive
 
 ## AI models (shared + personal BYOK)
 
