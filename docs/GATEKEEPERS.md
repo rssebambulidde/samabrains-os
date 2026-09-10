@@ -123,7 +123,7 @@ To use apex `@samabrains.com` mailboxes later, you’d need Cloudflare MX on the
 
 ## Connect smoke (2026-09-09, updated 2026-09-10)
 
-Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, Slack, Linear, Google, Notion, GitHub (7).
+Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, Slack, Linear, Google, Notion, GitHub, Supabase (8). Confluence shows in Connected with **Credentials expired** (needs site + reconnect).
 
 | Connector | Result | Notes |
 | --- | --- | --- |
@@ -133,22 +133,25 @@ Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, 
 | Cloudflare | Pass | Connected as `rssebambulidde` |
 | Notion | Pass | Connected as Samabrains Solutions |
 | Linear | Pass | Connected as `rssebambulidde` |
-| Confluence | **You:** Fail | Create a Confluence Cloud site on the Atlassian account used for OAuth, then reconnect at `/gatekeepers`. Scopes are already fixed on app **Samabrains OS**. |
+| Supabase | Pass | Connected as **ROBERT-SSEBAMBULIDDE's Org** |
+| Confluence | **You:** Fail | UI: Credentials expired. Create/link a Confluence Cloud site on the Atlassian OAuth account, then **Reconnect**. Scopes already on app **Samabrains OS**. |
 | Spotify | **You:** Fail | Add **Spotify Premium** on the **Developer Dashboard app owner** account; wait for propagation (hours). Callback now returns a clear HTML error (not Cloudflare 1101) when Premium is missing. Then reconnect. |
-| Supabase | **You:** Partial | Retry `/dashboard/authorize` when the SPA loads (or approve if it renders). Scopes already include orgs/projects/db/edge/storage. |
 | Email | Pass (UI + routing) | Connected as **Email Receiver**. Rule: `os@notify.samabrains.com` → `samabrains-os-email`. Optional: send a test mail and bind Email in a gadget. Apex Zoho MX conflict expected. |
-| Home Assistant | **You:** Blocked | Provide a **public** HA base URL + long-lived access token (Workers cannot reach LAN-only HA), then connect in `/gatekeepers`. |
-| MCP Server | **You:** Blocked | Provide a trusted MCP HTTPS URL (+ optional OAuth client id/secret). ZoomInfo MCP still N/A (vendor DCR allowlist). |
+| Home Assistant | **You:** Blocked | No public HA URL/token in session. Provide a **public** HA base URL + long-lived access token, then connect in `/gatekeepers`. |
+| MCP Server | **You:** Blocked | No MCP URL in session. Provide a trusted MCP HTTPS URL (+ optional OAuth client id/secret). ZoomInfo MCP still N/A (vendor DCR allowlist). |
 | MCP Portal | Out of scope | Needs `MCP_PORTAL_URL` on `samabrains-os-mcp-portal`. |
 
 ### Next actions checklist (account-gated)
 
-1. Confluence Cloud site → reconnect Confluence
+1. Confluence Cloud site → **Reconnect** Confluence
 2. Spotify Premium on app owner → reconnect Spotify
-3. Supabase authorize page → finish OAuth
-4. Paste HA URL + token when ready
-5. Paste MCP server URL when ready
-6. Optional: email `os@notify.samabrains.com` and confirm gadget receive
+3. Paste HA URL + token when ready
+4. Paste MCP server URL when ready
+5. Optional: email `os@notify.samabrains.com` and confirm gadget receive
+
+### AI Gateway safety (2026-09-10)
+
+On account gateway **`default`**: **Zero Data Retention** enabled; **Spend Limits** on with one rule **$5 / day** (sliding window), gateway-wide. Guardrails left off. Workshop shared-catalog calls send `cf-aig-metadata` with `userId` (profile id) for User Insights attribution.
 
 ## AI models (shared + personal BYOK)
 
