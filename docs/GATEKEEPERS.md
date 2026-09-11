@@ -14,7 +14,7 @@ Connectors appear under `/admin` and **Connections** after Access login.
 | Google | `samabrains-os-google` | `/gatekeeper/google` | OAuth |
 | Notion | `samabrains-os-notion` | `/gatekeeper/notion` | OAuth |
 | Slack | `samabrains-os-slack` | `/gatekeeper/slack` | OAuth (+ token rotation) |
-| Cloudflare | `samabrains-os-cloudflare` | `/gatekeeper/cloudflare` | OAuth |
+| Cloudflare | `samabrains-os-cloudflare` | `/gatekeeper/cloudflare` | OAuth (redirect `…/gatekeeper/cloudflare/oauth`; publisher domain verify + Safe Browsing: [SAFE_BROWSING_OAUTH.md](SAFE_BROWSING_OAUTH.md)) |
 | Confluence | `samabrains-os-confluence` | `/gatekeeper/confluence` | OAuth |
 | Linear | `samabrains-os-linear` | `/gatekeeper/linear` | OAuth |
 | Supabase | `samabrains-os-supabase` | `/gatekeeper/supabase` | OAuth |
