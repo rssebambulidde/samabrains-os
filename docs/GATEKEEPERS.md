@@ -38,12 +38,63 @@ Zero Trust portal **Samabrains MCP Portal** at `https://mcp.samabrains.com/` (MC
 
 | Setting | Value |
 | --- | --- |
-| Seed upstream | Cloudflare Docs (`https://docs.mcp.cloudflare.com/mcp`, id `cloudflare-docs`) |
-| Access policy | **Samabrains admin** (allow `rssebambulidde@gmail.com`) |
+| Portal Access | **Samabrains admin** + **Allow paid OS seats** + **Allow Samabrains OS users** |
 | Worker vars | `deployment.jsonc` → `mcpPortal.url` / `name` / `auth: oauth` → `MCP_PORTAL_*` on `samabrains-os-mcp-portal` |
 | Code Mode | Off |
 
-Connect once under `/gatekeepers` → **Samabrains MCP Portal**. Grants must name one upstream server (e.g. Docs), not the whole portal.
+#### Upstream catalog
+
+**Tier A / Daily** (per-server Access: paid seats + manual OS users):
+
+| Server | URL | Use |
+| --- | --- | --- |
+| Cloudflare Docs | `https://docs.mcp.cloudflare.com/mcp` | Up-to-date Cloudflare API/docs |
+| Agents SDK Docs | `https://agents.cloudflare.com/mcp` | Agents / MCP how-to |
+| Browser Rendering | `https://browser.mcp.cloudflare.com/mcp` | Fetch URL → markdown / screenshot |
+| Radar | `https://radar.mcp.cloudflare.com/mcp` | Public internet / DNS context |
+| Context7 | `https://mcp.context7.com/mcp/oauth` | Library / framework docs (OAuth URL; plain `/mcp` reports “no auth detected”) |
+| Exa | `https://mcp.exa.ai/mcp` | Web search / research (auth **Custom headers**: `x-api-key` = Exa API key from dashboard.exa.ai; OAuth/`None` fail CF tool discovery) |
+| Microsoft Learn | `https://learn.microsoft.com/api/mcp` | Microsoft docs (already seeded) |
+| Firecrawl | `https://mcp.firecrawl.dev/v2/mcp` | Scrape / crawl / map (keyless Ready in CF; upgrade later to `/v2/mcp-oauth` or Bearer key for higher limits) |
+| DeepWiki | `https://mcp.deepwiki.com/mcp` | Q&A over public GitHub repos |
+| Wolfram Cloud | `https://agenttools.wolfram.com/mcp` | Math / science / computation (no auth for casual use) |
+| Hugging Face | `https://huggingface.co/mcp` | Models, datasets, Spaces, papers, Hub docs (**Waiting** until admin completes OAuth once) |
+| Alpha Vantage | `https://mcp.alphavantage.co/mcp?apikey=…` | Markets / fundamentals / indicators (currently demo key for discovery; replace with Samabrains key — never commit) |
+
+**Tier B builders** (per-server Access: **Samabrains admin** only until a builder group is added):
+
+| Server | URL | Use |
+| --- | --- | --- |
+| Workers Bindings | `https://bindings.mcp.cloudflare.com/mcp` | Create/list Workers platform resources |
+| Workers Observability | `https://observability.mcp.cloudflare.com/mcp` | Account-wide Workers logs |
+| Workers Builds | `https://builds.mcp.cloudflare.com/mcp` | Workers Builds CI |
+| Sentry | `https://mcp.sentry.dev/mcp` | Error triage / issues (**Inactive/Waiting** until admin OAuth once; org/project-scoped URL optional) |
+
+Do **not** add GitHub / Google / Notion / Slack / Linear / Supabase as portal MCPs — use Gatekeepers instead.
+
+OAuth-backed upstreams may show **Waiting** until an admin completes authentication once in Zero Trust → **MCP servers** → open the server → finish the OAuth / connect flow (Bindings, Builds, Browser Rendering, Radar, Context7, Hugging Face, Sentry commonly need this). Ready without upstream OAuth: Cloudflare Docs, Agents SDK Docs, Microsoft Learn, Wolfram Cloud, DeepWiki, Firecrawl (keyless), Alpha Vantage (apikey query). Exa uses **Custom headers** (`x-api-key`). Workers Observability needs admin OAuth once.
+
+Connect once under `/gatekeepers` → **Samabrains MCP Portal**. Grants must name **one** upstream server (e.g. Docs or Exa), not the whole portal.
+
+#### Domain catalog (portal vs BYO vs Gatekeeper)
+
+| Domain | Portal (shared) | BYO MCP (user’s own seat) | Gatekeeper |
+| --- | --- | --- | --- |
+| Sales / Marketing | Firecrawl, Exa, Browser Rendering | HubSpot `https://mcp.hubspot.com`, Apollo `https://mcp.apollo.io/mcp`, ZoomInfo `https://mcp.zoominfo.com/mcp`, Microsoft Clarity | — |
+| Credit / lending | Alpha Vantage (macro context only) | Stripe (risk adjacent); Plaid-style = local only | Prefer custom gadgets over bureau MCPs |
+| Finance / payments | Alpha Vantage, Wolfram | Stripe `https://mcp.stripe.com` | — |
+| Data analysis | Radar, Wolfram, Exa/Firecrawl; Observability (Tier B) | Clarity, Google Ads, warehouse MCPs | — |
+| Data science / ML | Hugging Face, Context7, DeepWiki | Jupyter MCP (local) | — |
+| Mathematics | Wolfram Cloud | Enterprise Wolfram | — |
+| Academic research | Hugging Face, DeepWiki, Exa/Firecrawl, Microsoft Learn | arXiv / OpenAlex community (often stdio) | — |
+| Engineering | CF Docs/Agents/Bindings/Builds/Observability; Sentry (Tier B) | Figma | GitHub, Linear, Confluence |
+| Day-to-day SaaS | — | — | Google, Notion, Slack, Linear, GitHub, Email, Context, Scheduler |
+
+**BYO MCP** (optional; use MCP Server Gatekeeper or client-side MCP — not the shared portal): HubSpot, Apollo, ZoomInfo, Stripe, Figma, Clarity, Google Ads, Atlassian Rovo (`https://mcp.atlassian.com/v2/mcp`).
+
+#### Daily work for users (Gatekeepers first)
+
+In **Admin → Gatekeepers**, keep enabled: Google, Notion, Slack, Linear, GitHub, Context, Scheduler, Email (plus Cloudflare / Confluence / Supabase as needed). Tell users: connect **Google + Notion + Slack** for day-to-day mail, notes, and chat; use the portal for search/docs/fetch/math/ML; bring your own HubSpot/Apollo/Stripe MCP if you need CRM or payments.
 
 ## OAuth setup (required for all 8 OAuth connectors)
 
@@ -143,7 +194,7 @@ Apex `@samabrains.com` mailboxes are out of scope for this deployment while Zoho
 
 ## Connect smoke (2026-09-09, updated 2026-09-10)
 
-Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, Slack, Linear, Google, Notion, GitHub, Supabase, Confluence, **Samabrains MCP Portal** (10).
+Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, Slack, Linear, Google, Notion, GitHub, Supabase, Confluence, **Samabrains MCP Portal** (16 upstreams on portal as of 2026-09-11).
 
 | Connector | Result | Notes |
 | --- | --- | --- |
@@ -156,7 +207,7 @@ Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, 
 | Supabase | Pass | Connected as **ROBERT-SSEBAMBULIDDE's Org** |
 | Confluence | Pass | Connected as Robert Ssebambulidde |
 | Email | Pass (UI + routing) | Connected as **Email Receiver**. Permanent address: `os@notify.samabrains.com` → `samabrains-os-email`. Apex stays Zoho (no Cloudflare MX). |
-| Samabrains MCP Portal | Pass | Connected. Portal `https://mcp.samabrains.com/mcp` with Cloudflare Docs seed. Grant Docs in a workspace to use tools. |
+| Samabrains MCP Portal | Pass | Connected. **Active** Tier A adds: Firecrawl (3), DeepWiki (3), Wolfram (3), Alpha Vantage (133). **Inactive until admin OAuth**: Hugging Face, Sentry. Prior Tier A/B unchanged (Docs, Agents SDK, Browser, Radar, Context7, Exa, Learn; Bindings, Observability, Builds). Grant **one** upstream per binding. |
 | Home Assistant | **You:** Blocked | No public HA URL/token in session. Provide a **public** HA base URL + long-lived access token, then connect in `/gatekeepers`. |
 | MCP Server | Optional | BYO HTTPS MCP URL (+ optional OAuth client id/secret). ZoomInfo MCP still N/A (vendor DCR allowlist). |
 
@@ -179,7 +230,7 @@ Personal keys: **AI providers** (`/providers`) — users paste their own tokens;
 
 ## Admin
 
-Open `https://os.samabrains.com/admin` → Gatekeepers: leave connectors **enabled** once secrets (or Email Routing / HA / MCP config) are in place.
+Open `https://os.samabrains.com/admin` → Gatekeepers: leave connectors **enabled** once secrets (or Email Routing / HA / MCP config) are in place. Defaults are on (admin opts out). Keep Google, Notion, Slack, Linear, GitHub, Context, Scheduler, Email enabled for daily work.
 
 ## Custom Gatekeeper
 
