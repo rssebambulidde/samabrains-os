@@ -58,6 +58,7 @@ Zero Trust portal **Samabrains MCP Portal** at `https://mcp.samabrains.com/` (MC
 | Firecrawl | `https://mcp.firecrawl.dev/v2/mcp` | Scrape / crawl / map (keyless Ready in CF; upgrade later to `/v2/mcp-oauth` or Bearer key for higher limits) |
 | DeepWiki | `https://mcp.deepwiki.com/mcp` | Q&A over public GitHub repos |
 | Wolfram Cloud | `https://agenttools.wolfram.com/mcp` | Math / science / computation (no auth for casual use) |
+| Tavily | `https://mcp.tavily.com/mcp` | Web search / research (OAuth Ready; neighbor to Exa/Firecrawl) |
 | Hugging Face | `https://huggingface.co/mcp` | Models, datasets, Spaces, papers, Hub docs (**Waiting** until admin completes OAuth once) |
 | Alpha Vantage | `https://mcp.alphavantage.co/mcp?apikey=…` | Markets / fundamentals / indicators (currently demo key for discovery; replace with Samabrains key — never commit) |
 
@@ -68,11 +69,12 @@ Zero Trust portal **Samabrains MCP Portal** at `https://mcp.samabrains.com/` (MC
 | Workers Bindings | `https://bindings.mcp.cloudflare.com/mcp` | Create/list Workers platform resources |
 | Workers Observability | `https://observability.mcp.cloudflare.com/mcp` | Account-wide Workers logs |
 | Workers Builds | `https://builds.mcp.cloudflare.com/mcp` | Workers Builds CI |
+| Kling | `https://kling.ai/mcp` | Text/image → video or stills (credit burn; leave generative tools approval-gated) |
 | Sentry | `https://mcp.sentry.dev/mcp` | Error triage / issues (**Inactive/Waiting** until admin OAuth once; org/project-scoped URL optional) |
 
 Do **not** add GitHub / Google / Notion / Slack / Linear / Supabase as portal MCPs — use Gatekeepers instead.
 
-OAuth-backed upstreams may show **Waiting** until an admin completes authentication once in Zero Trust → **MCP servers** → open the server → finish the OAuth / connect flow (Bindings, Builds, Browser Rendering, Radar, Context7, Hugging Face, Sentry commonly need this). Ready without upstream OAuth: Cloudflare Docs, Agents SDK Docs, Microsoft Learn, Wolfram Cloud, DeepWiki, Firecrawl (keyless), Alpha Vantage (apikey query). Exa uses **Custom headers** (`x-api-key`). Workers Observability needs admin OAuth once.
+OAuth-backed upstreams may show **Waiting** until an admin completes authentication once in Zero Trust → **MCP servers** → open the server → finish the OAuth / connect flow (Bindings, Builds, Browser Rendering, Radar, Context7, Hugging Face, Sentry, Kling, Tavily commonly need this). Ready without upstream OAuth: Cloudflare Docs, Agents SDK Docs, Microsoft Learn, Wolfram Cloud, DeepWiki, Firecrawl (keyless), Alpha Vantage (apikey query). Exa uses **Custom headers** (`x-api-key`). Workers Observability needs admin OAuth once.
 
 Connect once under `/gatekeepers` → **Samabrains MCP Portal**. Grants must name **one** upstream server (e.g. Docs or Exa), not the whole portal.
 
@@ -80,14 +82,14 @@ Connect once under `/gatekeepers` → **Samabrains MCP Portal**. Grants must nam
 
 | Domain | Portal (shared) | BYO MCP (user’s own seat) | Gatekeeper |
 | --- | --- | --- | --- |
-| Sales / Marketing | Firecrawl, Exa, Browser Rendering | HubSpot `https://mcp.hubspot.com`, Apollo `https://mcp.apollo.io/mcp`, ZoomInfo `https://mcp.zoominfo.com/mcp`, Microsoft Clarity | — |
+| Sales / Marketing | Firecrawl, Exa, Tavily, Browser Rendering | HubSpot `https://mcp.hubspot.com`, Apollo `https://mcp.apollo.io/mcp`, ZoomInfo `https://mcp.zoominfo.com/mcp`, Microsoft Clarity | — |
 | Credit / lending | Alpha Vantage (macro context only) | Stripe (risk adjacent); Plaid-style = local only | Prefer custom gadgets over bureau MCPs |
 | Finance / payments | Alpha Vantage, Wolfram | Stripe `https://mcp.stripe.com` | — |
-| Data analysis | Radar, Wolfram, Exa/Firecrawl; Observability (Tier B) | Clarity, Google Ads, warehouse MCPs | — |
+| Data analysis | Radar, Wolfram, Exa/Firecrawl/Tavily; Observability (Tier B) | Clarity, Google Ads, warehouse MCPs | — |
 | Data science / ML | Hugging Face, Context7, DeepWiki | Jupyter MCP (local) | — |
 | Mathematics | Wolfram Cloud | Enterprise Wolfram | — |
-| Academic research | Hugging Face, DeepWiki, Exa/Firecrawl, Microsoft Learn | arXiv / OpenAlex community (often stdio) | — |
-| Engineering | CF Docs/Agents/Bindings/Builds/Observability; Sentry (Tier B) | Figma | GitHub, Linear, Confluence |
+| Academic research | Hugging Face, DeepWiki, Exa/Firecrawl/Tavily, Microsoft Learn | arXiv / OpenAlex community (often stdio) | — |
+| Engineering | CF Docs/Agents/Bindings/Builds/Observability; Kling / Sentry (Tier B) | Figma | GitHub, Linear, Confluence |
 | Day-to-day SaaS | — | — | Google, Notion, Slack, Linear, GitHub, Email, Context, Scheduler |
 
 **BYO MCP** (optional; use MCP Server Gatekeeper or client-side MCP — not the shared portal): HubSpot, Apollo, ZoomInfo, Stripe, Figma, Clarity, Google Ads, Atlassian Rovo (`https://mcp.atlassian.com/v2/mcp`).
@@ -174,9 +176,18 @@ Library shortcuts (select the Samabrains project first):
 Also confirm:
 
 - Redirect URI: `https://os.samabrains.com/gatekeeper/google/oauth`
-- OAuth consent screen **Testing** → add your Google account(s) as **Test users**
+- While still in **Testing**, add Google account(s) as **Test users**
+- For production (remove unverified-app warning): public Privacy/Terms on apex + brand/scope verification — see **[GOOGLE_OAUTH_VERIFICATION.md](GOOGLE_OAUTH_VERIFICATION.md)**
 
-Full setup notes: `cloudflare-os/packages/gatekeeper-google/README.md`.
+OAuth branding URLs (public; not behind Access):
+
+| Field | URL |
+| --- | --- |
+| Home | `https://samabrains.com/` · product `https://samabrains.com/os/` |
+| Privacy | `https://samabrains.com/privacy/` |
+| Terms | `https://samabrains.com/terms` |
+
+Full Gatekeeper setup notes: `cloudflare-os/packages/gatekeeper-google/README.md`.
 
 ## Email Routing
 
@@ -192,9 +203,9 @@ Cloudflare Email Routing is enabled on the ready subdomain `notify.samabrains.co
 
 Apex `@samabrains.com` mailboxes are out of scope for this deployment while Zoho holds apex MX.
 
-## Connect smoke (2026-09-09, updated 2026-09-10)
+## Connect smoke (2026-09-09, updated 2026-09-12)
 
-Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, Slack, Linear, Google, Notion, GitHub, Supabase, Confluence, **Samabrains MCP Portal** (16 upstreams on portal as of 2026-09-11).
+Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, Slack, Linear, Google, Notion, GitHub, Supabase, Confluence, **Samabrains MCP Portal** (Kling + Tavily attached 2026-09-12; ~18 upstreams on portal).
 
 | Connector | Result | Notes |
 | --- | --- | --- |
@@ -207,7 +218,7 @@ Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, 
 | Supabase | Pass | Connected as **ROBERT-SSEBAMBULIDDE's Org** |
 | Confluence | Pass | Connected as Robert Ssebambulidde |
 | Email | Pass (UI + routing) | Connected as **Email Receiver**. Permanent address: `os@notify.samabrains.com` → `samabrains-os-email`. Apex stays Zoho (no Cloudflare MX). |
-| Samabrains MCP Portal | Pass | Connected. **Active** Tier A adds: Firecrawl (3), DeepWiki (3), Wolfram (3), Alpha Vantage (133). **Inactive until admin OAuth**: Hugging Face, Sentry. Prior Tier A/B unchanged (Docs, Agents SDK, Browser, Radar, Context7, Exa, Learn; Bindings, Observability, Builds). Grant **one** upstream per binding. |
+| Samabrains MCP Portal | Pass | Connected. **2026-09-12:** Tier A **Tavily** (5 tools, OAuth Ready); Tier B **Kling** (17 tools, admin-only, OAuth Ready). Prior Active: Firecrawl, DeepWiki, Wolfram, Alpha Vantage, Docs, Agents SDK, Browser, Radar, Context7, Exa, Learn; Bindings, Observability, Builds. **Inactive until admin OAuth**: Hugging Face, Sentry. Grant **one** upstream per binding. |
 | Home Assistant | **You:** Blocked | No public HA URL/token in session. Provide a **public** HA base URL + long-lived access token, then connect in `/gatekeepers`. |
 | MCP Server | Optional | BYO HTTPS MCP URL (+ optional OAuth client id/secret). ZoomInfo MCP still N/A (vendor DCR allowlist). |
 
@@ -218,9 +229,26 @@ Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, 
 3. Optional: paste a BYO MCP Server URL when ready
 4. Optional: email `os@notify.samabrains.com` and confirm gadget receive
 
-### AI Gateway safety (2026-09-10)
+### AI Gateway safety (updated 2026-09-12)
 
-On account gateway **`default`**: **Zero Data Retention** enabled; **Spend Limits** on with one rule **$5 / day** (sliding window), gateway-wide. Guardrails left off. Workshop shared-catalog calls send `cf-aig-metadata` with `userId` (profile id) for User Insights attribution.
+On account gateway **`default`**:
+
+- **Zero Data Retention** enabled
+- **Authenticated Gateway** on
+- **Workers AI Billing** = **Unified billing**
+- **Rate Limit Requests**: **off** — gateway-wide rate limiting was returning empty-body `429`s (notably for `@cf/moonshotai/kimi-k2.7-code` while other models still worked). Turning it off fixed Kimi. Prefer spend limits over a tight gateway RPM for agent traffic.
+- **Spend Limits** on: one gateway-wide rule **$100 / day** (sliding window) — raised from $50 on 2026-09-12; earlier note of $5/day is obsolete
+- Guardrails left off
+
+Workshop shared-catalog calls send `cf-aig-metadata` with `userId` (profile id) for User Insights attribution.
+
+**Frontier Workers AI models** (billed via Unified Billing credits on this gateway), including `@cf/moonshotai/kimi-k2.6`, `@cf/moonshotai/kimi-k2.7-code`, and `@cf/zai-org/glm-5.2`:
+
+- Deduct from prepaid **AI Gateway credits** (dashboard link on the gateway: Credits)
+- Still subject to Cloudflare’s **per-account, per-model RPM** on the Workers AI side (separate from AI Gateway “Rate Limit Requests”)
+- Empty-body gateway **`429`** is rewritten in chat as “spend limit / Unified Billing throttling” even when the real cause was **Rate Limit Requests** — check Settings first
+
+If Kimi/`glm` fail again while other shared models work: confirm **Rate Limit Requests** is still off, then check Credits and Spend Limits.
 
 ## AI models (shared + personal BYOK)
 
