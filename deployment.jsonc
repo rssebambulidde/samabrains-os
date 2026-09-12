@@ -73,7 +73,7 @@
 
     // "cloudflare" is Workers AI. openai/anthropic appear in the shared catalog when the
     // deployment AI Gateway has provider auth (Unified Billing or company API keys).
-    "providers": ["cloudflare", "openai", "anthropic"]
+    "providers": ["cloudflare", "openai", "anthropic", "google"]
   },
 
   "context": {

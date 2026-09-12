@@ -224,7 +224,7 @@ On account gateway **`default`**: **Zero Data Retention** enabled; **Spend Limit
 
 ## AI models (shared + personal BYOK)
 
-Shared chat models come from `deployment.jsonc` → `aiGateway.providers` (Samabrains: `cloudflare`, `openai`, `anthropic`) via the account AI Gateway `default`. Company pays for shared catalog usage through Unified Billing credits. On that gateway: keep **Authenticated Gateway** on, set **Workers AI Billing** to **Unified billing**, and keep Provider Keys unset for shared providers so OpenAI/Anthropic use Unified Billing.
+Shared chat models come from `deployment.jsonc` → `aiGateway.providers` (Samabrains: `cloudflare`, `openai`, `anthropic`, `google`) via the account AI Gateway `default`. Company pays for shared catalog usage through Unified Billing credits. On that gateway: keep **Authenticated Gateway** on, set **Workers AI Billing** to **Unified billing**, and keep Provider Keys unset for shared providers so OpenAI/Anthropic/Google use Unified Billing. Google requires `CF_AI_GATEWAY_API_TOKEN` on the Workshop (HTTPS-only; cannot use the Workers AI binding).
 
 Personal keys: **AI providers** (`/providers`) — users paste their own tokens; those models bill the user directly even while the shared gateway stays on.
 

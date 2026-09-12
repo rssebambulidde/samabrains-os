@@ -173,15 +173,15 @@ With AI Gateway enabled, the chat picker lists **shared** suggested models for e
 
 Users can also open **AI providers** (`/providers`) and add models with **their own** API tokens (OpenAI, Anthropic, Google, Cloudflare Workers AI, Ollama). Those models are stored on the user account and routed **directly** to the provider with that key — even while the shared gateway catalog remains on. Personal BYOK charges the user’s provider account, not the company gateway.
 
-Samabrains OS uses `providers: ["cloudflare", "openai", "anthropic"]`. On the account AI Gateway named `default`:
+Samabrains OS uses `providers: ["cloudflare", "openai", "anthropic", "google"]`. On the account AI Gateway named `default`:
 
 1. Keep **Authenticated Gateway** on (Worker binding traffic stays pre-authenticated; this is required for gateway enforcement).
 2. Keep **Rate Limit** / **Spend Limits** high enough for multi-step chat (tight limits cause opaque `429 status code (no body)` — see [SAFE_BROWSING_OAUTH.md](SAFE_BROWSING_OAUTH.md#ai-gateway-default-chat-429)).
 3. Load **AI Gateway credits** and keep shared provider requests on **Unified Billing**.
 4. Set **Workers AI Billing** to **Unified billing** so Workers AI shares the same credit balance.
-5. Leave **Provider Keys** unset for shared providers so OpenAI/Anthropic fall through to Unified Billing.
+5. Leave **Provider Keys** unset for shared providers so OpenAI/Anthropic/Google fall through to Unified Billing.
 
-Without those steps, shared OpenAI/Anthropic/Workers AI models can appear in the picker but fail once credits are empty or billing mode is misconfigured.
+Without those steps, shared OpenAI/Anthropic/Google/Workers AI models can appear in the picker but fail once credits are empty or billing mode is misconfigured.
 
 `pnpm check` reports which of the last two applies before it deploys anything.
 
