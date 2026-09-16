@@ -229,32 +229,35 @@ Smoke from `/gatekeepers` after Access login. **CONNECTED**: Email, Cloudflare, 
 3. Optional: paste a BYO MCP Server URL when ready
 4. Optional: email `os@notify.samabrains.com` and confirm gadget receive
 
-### AI Gateway safety (updated 2026-09-12)
+### AI Gateway safety (updated 2026-09-15 — Path A)
 
 On account gateway **`default`**:
 
 - **Zero Data Retention** enabled
 - **Authenticated Gateway** on
-- **Workers AI Billing** = **Unified billing**
+- **Workers AI Billing** = **Standard** (company **Neurons**: 10k free/day, then Workers Paid Neuron pricing). Not Unified — `@cf/` models must not draw AI Gateway credits.
 - **Rate Limit Requests**: **off** — gateway-wide rate limiting was returning empty-body `429`s (notably for `@cf/moonshotai/kimi-k2.7-code` while other models still worked). Turning it off fixed Kimi. Prefer spend limits over a tight gateway RPM for agent traffic.
-- **Spend Limits** on: one gateway-wide rule **$100 / day** (sliding window) — raised from $50 on 2026-09-12; earlier note of $5/day is obsolete
+- **Spend Limits** on: one gateway-wide rule **$100 / day** (sliding window) — applies to **credit-billed** providers (OpenAI/Anthropic/Google), not Neuron metering for Workers AI
 - Guardrails left off
+- **OS limits**: `ENABLE_CLOUDFLARE_LIMITS=false` — no per-user 5-chat cap; Connect Cloudflare does **not** switch shared-catalog billing to the user. Shared traffic stays on the **platform** gateway.
 
 Workshop shared-catalog calls send `cf-aig-metadata` with `userId` (profile id) for User Insights attribution.
 
-**Frontier Workers AI models** (billed via Unified Billing credits on this gateway), including `@cf/moonshotai/kimi-k2.6`, `@cf/moonshotai/kimi-k2.7-code`, and `@cf/zai-org/glm-5.2`:
+**Frontier Workers AI models** (Path A / Standard billing), including `@cf/moonshotai/kimi-k2.7-code`, `@cf/zai-org/glm-5.2`, `@cf/zai-org/glm-5.3-flash`, and `@cf/deepseek-ai/deepseek-v4-pro-0813`:
 
-- Deduct from prepaid **AI Gateway credits** (dashboard link on the gateway: Credits)
+- Bill **company Neurons** (free allocation first). Account must be on **Workers Paid** for these frontier models on the Neuron path.
 - Still subject to Cloudflare’s **per-account, per-model RPM** on the Workers AI side (separate from AI Gateway “Rate Limit Requests”)
 - Empty-body gateway **`429`** is rewritten in chat as “spend limit / Unified Billing throttling” even when the real cause was **Rate Limit Requests** — check Settings first
 
-If Kimi/`glm` fail again while other shared models work: confirm **Rate Limit Requests** is still off, then check Credits and Spend Limits.
+**OpenAI / Anthropic / Google** still use prepaid **AI Gateway credits** on this gateway. `$0` credits → those providers fail in chat while `@cf/` can keep working on Neurons.
+
+If Kimi/`glm` fail while other shared models work: confirm **Rate Limit Requests** is still off, **Workers AI Billing** is **Standard**, and the account is **Workers Paid**.
 
 ## AI models (shared + personal BYOK)
 
-Shared chat models come from `deployment.jsonc` → `aiGateway.providers` (Samabrains: `cloudflare`, `openai`, `anthropic`, `google`) via the account AI Gateway `default`. Company pays for shared catalog usage through Unified Billing credits. On that gateway: keep **Authenticated Gateway** on, set **Workers AI Billing** to **Unified billing**, and keep Provider Keys unset for shared providers so OpenAI/Anthropic/Google use Unified Billing. Google requires `CF_AI_GATEWAY_API_TOKEN` on the Workshop (HTTPS-only; cannot use the Workers AI binding).
+Shared chat models come from `deployment.jsonc` → `aiGateway.providers` (Samabrains: `cloudflare`, `openai`, `anthropic`, `google`) via the account AI Gateway `default`. **Path A:** `@cf/` Workers AI is paid with **company Neurons** (**Workers AI Billing = Standard**). OpenAI/Anthropic/Google use **Unified Billing credits**. Keep **Authenticated Gateway** on; leave Provider Keys unset for shared OpenAI/Anthropic/Google so they use credits. Google requires `CF_AI_GATEWAY_API_TOKEN` on the Workshop (HTTPS-only; cannot use the Workers AI binding).
 
-Personal keys: **AI providers** (`/providers`) — users paste their own tokens; those models bill the user directly even while the shared gateway stays on.
+Personal keys: **AI providers** (`/providers`) — users paste their own tokens; those models bill the user directly even while the shared gateway catalog remains on.
 
 ## Admin
 

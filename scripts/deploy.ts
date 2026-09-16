@@ -580,9 +580,9 @@ export function generateConfigs(
     // Upstream builds OAuth redirect URIs and other absolute links from this. The backend has no
     // public route of its own, so the router's origin is the only correct value.
     PUBLIC_BASE_URL: origin,
-    // Shared free-tier LLM calls included in the monthly platform fee (pay.samabrains.com).
-    ENABLE_CLOUDFLARE_LIMITS: "true",
-    DAILY_LLM_CALL_LIMIT: "5",
+    // Path A: platform wallet for all shared catalog traffic (no per-user 5-chat / BYOK gate).
+    // Workers AI (@cf/) bills company Neurons when gateway Workers AI Billing = Standard.
+    ENABLE_CLOUDFLARE_LIMITS: "false",
   };
   const gateway = aiGatewayPlan(config);
   if (gateway) {
